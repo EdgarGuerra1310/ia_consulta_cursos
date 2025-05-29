@@ -3,3 +3,4 @@ openai
 mysql-connector-python
 faiss-cpu
 PyPDF2
+sentence_transformers
