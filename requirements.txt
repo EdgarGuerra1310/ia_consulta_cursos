@@ -2,3 +2,4 @@ flask
 openai
 mysql-connector-python
 faiss-cpu
+PyPDF2
