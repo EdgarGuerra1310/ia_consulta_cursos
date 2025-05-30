@@ -19,7 +19,8 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
 
 # Configurar API Key de OpenAI
-openai.api_key = os.getenv("OPENAI_API_KEY")
+#openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = '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'
 
 # Cargar modelo embeddings
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
