@@ -56,7 +56,7 @@ Devuelve solo las preguntas numeradas, sin explicaciones ni texto adicional.
     questions = [line.strip().lstrip("0123456789. ") for line in answer.split("\n") if line.strip()]
     return questions
 
-@app.route("/")
+@app.route("/consulta_curso/")
 def home():
     if "history" not in session:
         session["history"] = []
