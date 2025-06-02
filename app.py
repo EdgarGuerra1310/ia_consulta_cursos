@@ -169,6 +169,193 @@ Respuesta:"""
 
 
 
+########################################################################
+###############DESARROLLO DE ENTRENAMIENTO##############################
+########################################################################
+import random
+@app.route("/entrenamiento_curso/")
+def entrenamiento_home():
+    session["training_session"] = {
+        "nivel": 1,
+        "puntaje": 0,
+        "preguntas_previas": [],
+        "ultima_pregunta": "",
+        "tipo": "abierta"
+    }
+    return render_template("entrenamiento.html")
+
+@app.route("/entrenamiento_chat", methods=["POST"])
+def entrenamiento_chat():
+    user_input = request.json.get("message")
+    usuario = request.json.get("usuario", "usuario_default")
+
+    training_session = session.get("training_session", {
+        "nivel": 1,
+        "puntaje": 0,
+        "preguntas_previas": [],
+        "ultima_pregunta": "",
+        "tipo": "abierta"
+    })
+
+    # Si es inicio o nueva pregunta
+    if not user_input:
+        context = "\n\n".join(search_faiss("conceptos básicos", k=3))
+        tipo_pregunta = random.choice(["abierta", "alternativas"])
+
+        if tipo_pregunta == "alternativas":
+            prompt = f"""
+Según el siguiente contexto, genera una pregunta de opción múltiple para entrenamiento docente. Incluye cuatro alternativas, una de ellas correcta. Usa el formato:
+
+PREGUNTA: ...
+A) ...
+B) ...
+C) ...
+D) ...
+CORRECTA: ...
+
+{context}
+"""
+        else:
+            prompt = f"""
+Según el siguiente contexto, genera una pregunta abierta para entrenamiento docente. Devuelve solo la pregunta.
+
+{context}
+"""
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+        pregunta_generada = response["choices"][0]["message"]["content"].strip()
+
+        training_session["ultima_pregunta"] = pregunta_generada
+        training_session["tipo"] = tipo_pregunta
+        session["training_session"] = training_session
+
+        return jsonify({
+            "question": pregunta_generada,
+            "feedback": "",
+            "puntaje": training_session["puntaje"],
+            "tipo": tipo_pregunta
+        })
+
+    # Evaluar respuesta del usuario
+    pregunta = training_session["ultima_pregunta"]
+    tipo_pregunta = training_session["tipo"]
+    context = "\n\n".join(search_faiss(pregunta, k=3))
+
+    prompt_evaluacion = f"""
+Contexto del curso:
+{context}
+
+Pregunta:
+{pregunta}
+
+Respuesta del usuario:
+{user_input}
+
+Evalúa si la respuesta es correcta. Si es correcta, responde con:
+FEEDBACK: Explicación breve de por qué es correcta.
+CORRECTO: sí
+REFERENCIA: En qué parte del contenido del curso se puede ampliar la información.
+
+Si no es correcta, responde con:
+FEEDBACK: Explicación breve de por qué no es correcta.
+CORRECTO: no
+REFERENCIA: En qué parte del contenido del curso se puede revisar para entenderlo mejor.
+
+Luego genera una NUEVA_PREGUNTA para continuar el entrenamiento. Si es posible, alterna entre pregunta abierta o de alternativas. Si es de alternativas, usa este formato:
+
+PREGUNTA: ...
+A) ...
+B) ...
+C) ...
+D) ...
+CORRECTA: ...
+"""
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt_evaluacion}],
+        temperature=0.5
+    )
+    content = response["choices"][0]["message"]["content"]
+
+    feedback = re.search(r"FEEDBACK:\s*(.*)", content)
+    correcto = re.search(r"CORRECTO:\s*(sí|no)", content, re.IGNORECASE)
+    nueva_pregunta = re.search(r"PREGUNTA:.*", content, re.DOTALL)
+    referencia = re.search(r"REFERENCIA:\s*(.*)", content)
+
+    feedback_text = feedback.group(1).strip() if feedback else "No se pudo evaluar."
+    es_correcto = correcto.group(1).strip().lower() == "sí" if correcto else False
+    referencia_texto = referencia.group(1).strip() if referencia else "Revisa el contenido del curso."
+
+
+
+
+    nueva_pregunta_texto = nueva_pregunta.group(0).strip() if nueva_pregunta else "No se pudo generar nueva pregunta."
+
+    # Determinar tipo de nueva pregunta
+    tipo_siguiente = "alternativas" if re.search(r"A\)\s", nueva_pregunta_texto) else "abierta"
+
+    training_session["puntaje"] += 1 if es_correcto else -1
+    training_session["preguntas_previas"].append({
+        "pregunta": pregunta,
+        "respuesta": user_input,
+        "feedback": feedback_text,
+        "correcto": es_correcto
+    })
+    training_session["ultima_pregunta"] = nueva_pregunta_texto
+    training_session["tipo"] = tipo_siguiente
+    session["training_session"] = training_session
+
+    
+    # Conectar a PostgreSQL (ajusta usuario, db, password)
+    conn = psycopg2.connect(
+        dbname="proyectos_ia",
+        user="postgres",
+        password="1edgarGUERRA",
+        host="localhost",
+        port="5432"
+    )
+    cursor = conn.cursor()
+
+    # Crear tabla si no existe (PostgreSQL)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS interacciones_entrenamiento (
+    id SERIAL PRIMARY KEY,
+    usuario VARCHAR(100),
+    pregunta TEXT,
+    respuesta TEXT,
+    correcta BOOLEAN,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    conn.commit()
+
+    cursor = conn.cursor()
+
+    # Insertar en la tabla interacciones_entrenamiento
+    cursor.execute('''
+        INSERT INTO interacciones_entrenamiento (usuario, pregunta, respuesta, correcta)
+        VALUES (%s, %s, %s, %s)
+    ''', (usuario, pregunta, user_input, es_correcto))
+    conn.commit()
+
+    # Cerrar la conexión si ya no se necesita más adelante
+    cursor.close()
+    conn.close()
+
+
+
+    return jsonify({
+        "question": nueva_pregunta_texto,
+        "feedback": feedback_text + f" (📚 {referencia_texto})",
+        "puntaje": training_session["puntaje"],
+        "tipo": tipo_siguiente
+    })
+
 
 
 
