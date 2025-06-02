@@ -9,6 +9,11 @@ from dotenv import load_dotenv
 import re
 import openai
 
+#import sqlite3
+import psycopg2
+
+
+
 load_dotenv()
 
 DATA_FOLDER = "data"
@@ -20,7 +25,6 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
 
 # Configurar API Key de OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
-#openai.api_key = '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'
 
 # Cargar modelo embeddings
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -80,7 +84,9 @@ def get_recommended_questions():
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    #print("🧾 JSON recibido:", request.json)
     user_input = request.json.get("message")
+    usuario = request.json.get("usuario", "usuario_default")
     relevant_texts = search_faiss(user_input, k=3)
     context = "\n\n".join(relevant_texts)
     prompt = f"""Contesta de forma clara y concisa. Además, proporciona enlaces o recursos adicionales relacionados (videos, artículos, etc.) si es posible, usando únicamente el contexto:
@@ -102,7 +108,71 @@ Respuesta:"""
         temperature=0
     )
     answer = response['choices'][0]['message']['content'].strip()
+    #return jsonify({"answer": answer})
+
+#    # Guardar interacción en la base de datos
+#    cursor.execute(
+#        "INSERT INTO interacciones (usuario, mensaje, respuesta) VALUES (?, ?, ?)",
+#        ("usuario1", user_input, answer)
+#    )
+#    conn.commit()
+
+
+    # Conectar a PostgreSQL (ajusta usuario, db, password)
+    conn = psycopg2.connect(
+        dbname="proyectos_ia",
+        user="postgres",
+        password="1edgarGUERRA",
+        host="localhost",
+        port="5432"
+    )
+    cursor = conn.cursor()
+
+    # Crear tabla si no existe (PostgreSQL)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS interacciones (
+        id SERIAL PRIMARY KEY,
+        usuario TEXT NOT NULL,
+        mensaje TEXT NOT NULL,
+        respuesta TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    conn.commit()
+
+    # En la función chat(), cambia la inserción a:
+    cursor.execute(
+        "INSERT INTO interacciones (usuario, mensaje, respuesta) VALUES (%s, %s, %s)",
+        (usuario, user_input, answer)
+    )
+    conn.commit()    
+
     return jsonify({"answer": answer})
+
+
+
+#   # Crear o conectar a la base SQLite (archivo local)
+#   conn = sqlite3.connect('interacciones.db', check_same_thread=False)
+#   cursor = conn.cursor()
+#   
+#   # Crear tabla para guardar interacciones si no existe
+#   cursor.execute('''
+#   CREATE TABLE IF NOT EXISTS interacciones (
+#       id INTEGER PRIMARY KEY AUTOINCREMENT,
+#       usuario TEXT NOT NULL,
+#       mensaje TEXT NOT NULL,
+#       respuesta TEXT NOT NULL,
+#       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+#   )
+#   ''')
+#   conn.commit()
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     # Cargar índice FAISS y metadata antes de iniciar la app
