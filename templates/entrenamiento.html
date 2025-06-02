@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -142,6 +142,7 @@
 <body>
   <div class="container">
     <h2>Entrenamiento Docente</h2>
+    <div id="mensaje_saludo2"></div>
     <p><strong>Puntaje:</strong> <span id="puntaje">0</span></p>
 
     <div id="chat-box"></div>
@@ -162,6 +163,29 @@
   </div>
 
   <script>
+
+    // Función para obtener parámetros de la URL - Pablo
+	function obtenerParametro(nombre) {
+	  const urlParams = new URLSearchParams(window.location.search);
+	  return urlParams.get(nombre);
+	}
+
+	// Obtener el parámetro 'user' de la URL
+	const usuario = obtenerParametro('user');
+    const curid = obtenerParametro('curid');
+	const usernombre = obtenerParametro('usernombre');
+    //const usernombre = obtenerParametro('usernombre');
+    
+	// Mostrar el valor en el HTML
+	if (usuario && curid && usernombre) {
+	  document.getElementById('mensaje_saludo2').textContent = `Hola : ${usernombre},${usuario}, En este espacio podrás entrenar y practicar con respecto al curso de Identidad Docente. Presiona en Iniciar Entrenamiento y responde`;
+	} else {
+	  document.getElementById('mensaje_saludo2').textContent = 'No se proporcionó un usuario.';
+	}
+	
+	// Fin Pablo
+
+
     let tipoPregunta = "abierta";
     let esperandoRespuesta = false;
     let ultimaPregunta = "";
