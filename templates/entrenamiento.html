@@ -269,7 +269,7 @@
       fetch("/entrenamiento_chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: respuesta , usuario})
+        body: JSON.stringify({ message: respuesta ,usuario})
       })
       .then(res => res.json())
       .then(data => {
