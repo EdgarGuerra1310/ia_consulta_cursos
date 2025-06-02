@@ -359,6 +359,61 @@ CORRECTA: ...
 
 
 
+########################################################################
+###############NARRACIONES REFLEXIVAS##############################
+########################################################################
+from flask import request, redirect, url_for, flash
+import PyPDF2
+
+@app.route("/revision_productos/")
+def productos_home():
+    if "history" not in session:
+        session["history"] = []
+    return render_template("productos.html")
+
+
+
+RUBRICA = {
+    "Claridad": "¿El documento presenta ideas de manera clara y comprensible?",
+    "Evidencia": "¿El contenido está respaldado con evidencias o ejemplos?",
+    "Organización": "¿Está bien estructurado y sigue una secuencia lógica?",
+    "Ortografía y gramática": "¿Se usa correctamente la gramática y ortografía?",
+    "Conclusión": "¿El documento cierra con una conclusión sólida?"
+}
+
+@app.route("/evaluar_pdf", methods=["POST"])
+def evaluar_pdf():
+    
+    if "pdf_file" not in request.files:
+        flash("No se seleccionó ningún archivo.")
+        return redirect(url_for("home"))
+
+    pdf_file = request.files["pdf_file"]
+
+    # Leer texto del PDF
+    reader = PyPDF2.PdfReader(pdf_file)
+    texto_pdf = ""
+    for page in reader.pages:
+        texto_pdf += page.extract_text()
+
+    # Enviar a GPT para evaluación según la rúbrica
+    prompt = f"Evalúa el siguiente texto basado en la rúbrica del curso.\n\nTexto:\n{texto_pdf}\n\nRúbrica:\n"
+    for criterio, descripcion in RUBRICA.items():
+        prompt += f"- {criterio}: {descripcion}\n"
+
+    prompt += "\nDame una retroalimentación detallada para cada punto de la rúbrica."
+
+    respuesta = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+
+    evaluacion = respuesta['choices'][0]['message']['content']
+
+    return render_template("productos.html", evaluacion=evaluacion)
+
+
 
 
 # Cargar índice FAISS y metadata antes de definir rutas
