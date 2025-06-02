@@ -174,10 +174,10 @@ Respuesta:"""
 
 
 
-if __name__ == "__main__":
-    # Cargar índice FAISS y metadata antes de iniciar la app
-    index = faiss.read_index(os.path.join(INDEX_FOLDER, "index.faiss"))
-    with open(os.path.join(INDEX_FOLDER, "metadata.json"), "r", encoding="utf-8") as f:
-        metadata = json.load(f)
+# Cargar índice FAISS y metadata antes de definir rutas
+index = faiss.read_index(os.path.join(INDEX_FOLDER, "index.faiss"))
+with open(os.path.join(INDEX_FOLDER, "metadata.json"), "r", encoding="utf-8") as f:
+    metadata = json.load(f)
 
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
