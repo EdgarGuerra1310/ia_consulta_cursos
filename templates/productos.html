@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Revisión de Productos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Estilos base */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #f0f4f8, #d9e2ec);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            margin: 40px 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #3b82f6;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        .feedback {
+            margin-top: 30px;
+            background: #f9fafb;
+            padding: 20px;
+            border-left: 5px solid #3b82f6;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            color: #111827;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+
+        @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Revisión de Productos</h1>
+
+        <form action="/evaluar_pdf" method="post" enctype="multipart/form-data">
+            <label for="pdf_file">Sube tu archivo PDF:</label>
+            <input type="file" name="pdf_file" accept=".pdf" required>
+            <button type="submit">Evaluar</button>
+        </form>
+
+        <div id="loading" style="display: none; margin-top: 20px; text-align: center;">
+    <p style="color: #1d4ed8; font-weight: bold;">Procesando archivo... por favor espera</p>
+    <div style="margin: 10px auto; width: 40px; height: 40px; border: 5px solid #cbd5e1; border-top: 5px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+</div>
+
+        {% if evaluacion %}
+            <div class="feedback">
+                <h2>Retroalimentación:</h2>
+                <p>{{ evaluacion }}</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+<script>
+    const form = document.querySelector("form");
+    const loading = document.getElementById("loading");
+
+    form.addEventListener("submit", function () {
+        loading.style.display = "block";
+    });
+</script>
+</html>
