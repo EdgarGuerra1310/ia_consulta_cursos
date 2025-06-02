@@ -108,6 +108,8 @@
     <div class="container">
         <h2>💬 Chat sobre contenido del curso</h2>
 
+        <div id="mensaje_saludo"></div>
+
         <label for="question-select">📌 Preguntas recomendadas:</label>
         <div style="display: flex; align-items: center;">
             <select id="question-select">
@@ -125,6 +127,29 @@
     </div>
 
     <script>
+
+
+        // Función para obtener parámetros de la URL - Pablo
+		function obtenerParametro(nombre) {
+		  const urlParams = new URLSearchParams(window.location.search);
+		  return urlParams.get(nombre);
+		}
+
+		// Obtener el parámetro 'user' de la URL
+		const usuario = obtenerParametro('user');
+        const curid = obtenerParametro('curid');
+		const usernombre = obtenerParametro('usernombre');
+        //const usernombre = obtenerParametro('usernombre');
+        
+		// Mostrar el valor en el HTML
+		if (usuario && curid && usernombre) {
+		  document.getElementById('mensaje_saludo').textContent = `Hola : ${usernombre},${usuario}, En este espacio podrás consultar cualquier duda que tengas con respecto al curso de Identidad Docente`;
+		} else {
+		  document.getElementById('mensaje_saludo').textContent = 'No se proporcionó un usuario.';
+		}
+	    
+	    // Fin Pablo
+
         async function loadRecommendedQuestions() {
             try {
                 const res = await fetch("/get_recommended_questions");
@@ -157,7 +182,10 @@
                 const res = await fetch("/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        message,
+                        usuario
+                    })
                 });
                 const data = await res.json();
                 addMessage("bot", data.answer);
