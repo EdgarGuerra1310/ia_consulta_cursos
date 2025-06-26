@@ -8,6 +8,7 @@ import faiss
 from dotenv import load_dotenv
 import re
 import openai
+from docx import Document
 
 #import sqlite3
 import psycopg2
@@ -37,6 +38,15 @@ def search_faiss(query, k=4):
     for idx in I[0]:
         if idx < len(metadata):
             results.append(metadata[idx]["text"])
+    return results
+
+def search_faiss_curso(query, k=4):
+    query_embedding = embedding_model.encode([query]).astype("float32")
+    D, I = index.search(query_embedding, k)
+    results = []
+    for idx in I[0]:
+        if idx < len(metadata):
+            results.append(metadata[idx])  # ← Devuelve todo el diccionario completo
     return results
 
 # --- Generar preguntas recomendadas con OpenAI chat completions ---
@@ -82,23 +92,33 @@ def get_recommended_questions():
 
     return jsonify({"questions": questions})
 
+def leer_prompt_desde_word(path_docx):
+    doc = Document(path_docx)
+    texto = "\n".join([p.text for p in doc.paragraphs])
+    return texto.strip()
+
+PROMPT_TEMPLATE = leer_prompt_desde_word("prompt_base.docx")
+
+def formatear_chunk_para_contexto(chunk):
+    referencia = f"{chunk['source']}, página {chunk['page']}"
+    if chunk.get("links"):
+        referencia += ", " + ", ".join(chunk["links"])
+    return f"---\nTexto:\n{chunk['text'].strip()}\n\nFuente: {referencia}\n---"
+
+
+
 @app.route("/chat", methods=["POST"])
 def chat():
     #print("🧾 JSON recibido:", request.json)
     user_input = request.json.get("message")
     usuario = request.json.get("usuario", "usuario_default")
-    relevant_texts = search_faiss(user_input, k=3)
-    context = "\n\n".join(relevant_texts)
-    prompt = f"""Contesta de forma clara y concisa. Además, proporciona enlaces o recursos adicionales relacionados (videos, artículos, etc.) si es posible, usando únicamente el contexto:
-
-Contexto:
-{context}
-
-Pregunta:
-{user_input}
-
-Respuesta:"""
-
+    #relevant_texts = search_faiss(user_input, k=3)
+    #context = "\n\n".join(relevant_texts)
+    relevant_chunks = search_faiss_curso(user_input, k=3)
+    context_parts = [formatear_chunk_para_contexto(chunk) for chunk in relevant_chunks]
+    context = "\n\n".join(context_parts)
+    prompt = PROMPT_TEMPLATE.format(context=context, question=user_input)
+    # Llamada a OpenAI
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",  # o "gpt-3.5-turbo"
         messages=[
@@ -359,6 +379,7 @@ CORRECTA: ...
 
 
 
+
 ########################################################################
 ###############NARRACIONES REFLEXIVAS##############################
 ########################################################################
@@ -414,7 +435,52 @@ def evaluar_pdf():
     return render_template("productos.html", evaluacion=evaluacion)
 
 
-
+##DETECCIÓN CON IMAGENES DENTRO DEL PDF
+# from pdf2image import convert_from_bytes
+# import pytesseract
+# 
+# @app.route("/evaluar_pdf", methods=["POST"])
+# def evaluar_pdf():
+#     if "pdf_file" not in request.files:
+#         flash("No se seleccionó ningún archivo.")
+#         return redirect(url_for("home"))
+# 
+#     pdf_file = request.files["pdf_file"]
+# 
+#     # Extraer texto digital con PyPDF2
+#     reader = PyPDF2.PdfReader(pdf_file)
+#     texto_pdf = ""
+#     for page in reader.pages:
+#         texto_pdf += page.extract_text() or ""  # En caso de None
+# 
+#     # Para OCR, convertir el PDF a imágenes
+#     pdf_file.seek(0)  # Volver al inicio del archivo para pdf2image
+#     pages = convert_from_bytes(pdf_file.read(), dpi=300)
+# 
+#     texto_ocr = ""
+#     for i, page in enumerate(pages):
+#         texto_ocr += pytesseract.image_to_string(page, lang='spa') + "\n"
+# 
+#     # Combinar texto PyPDF2 + OCR (evita repeticiones si quieres)
+#     texto_completo = texto_pdf + "\n" + texto_ocr
+# 
+#     # Construir prompt con la rúbrica
+#     prompt = f"Evalúa el siguiente texto basado en la rúbrica del curso.\n\nTexto:\n{texto_completo}\n\nRúbrica:\n"
+#     for criterio, descripcion in RUBRICA.items():
+#         prompt += f"- {criterio}: {descripcion}\n"
+# 
+#     prompt += "\nDame una retroalimentación detallada para cada punto de la rúbrica."
+# 
+#     respuesta = openai.ChatCompletion.create(
+#         model="gpt-4",
+#         messages=[{"role": "user", "content": prompt}],
+#         temperature=0.7
+#     )
+# 
+#     evaluacion = respuesta['choices'][0]['message']['content']
+# 
+#     return render_template("productos.html", evaluacion=evaluacion)
+# 
 
 # Cargar índice FAISS y metadata antes de definir rutas
 index = faiss.read_index(os.path.join(INDEX_FOLDER, "index.faiss"))
