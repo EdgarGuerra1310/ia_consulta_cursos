@@ -126,6 +126,7 @@
         </div>
     </div>
 
+
     <script>
 
 
@@ -167,11 +168,26 @@
             }
         }
 
+        //function addMessage(role, text) {
+        //    const chatbox = document.getElementById("chatbox");
+        //    const div = document.createElement("div");
+        //    div.className = role;
+        //    div.textContent = (role === 'user' ? "👤 " : "🤖 ") + text;
+        //    chatbox.appendChild(div);
+        //    chatbox.scrollTop = chatbox.scrollHeight;
+        //}
+
         function addMessage(role, text) {
             const chatbox = document.getElementById("chatbox");
             const div = document.createElement("div");
             div.className = role;
-            div.textContent = (role === 'user' ? "👤 " : "🤖 ") + text;
+
+            // Convertir saltos de línea en <br> solo para respuestas del bot
+            if (role === 'bot') {
+                text = text.replace(/\n/g, "<br>");
+            }
+
+            div.innerHTML = (role === 'user' ? "👤 " : "🤖 ") + text;
             chatbox.appendChild(div);
             chatbox.scrollTop = chatbox.scrollHeight;
         }
@@ -214,6 +230,7 @@
         });
 
         window.onload = loadRecommendedQuestions;
+       
     </script>
 </body>
 </html>
